@@ -1,0 +1,5 @@
+#!/bin/sh
+# This script is supposed to be replaced or appended to /etc/rc.local to activate le9 at boot-time.
+
+echo n | tee /sys/kernel/mm/lru_gen/enabled
+
