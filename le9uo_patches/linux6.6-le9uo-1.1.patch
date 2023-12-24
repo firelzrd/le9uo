@@ -1,4 +1,4 @@
-From a70cb2d662a7a2a6ae0506e31ffde4cbb8343835 Mon Sep 17 00:00:00 2001
+From 65160a160e62e6d7c902672c875f3fb2e15d13b5 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
 Date: Mon, 25 Dec 2023 01:02:47 +0900
 Subject: [PATCH] linux6.6-le9uo-1.1
@@ -239,7 +239,7 @@ index 264a2df5ec..3dda230abe 100644
  	bool
  
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dcc264d3c9..5691aec99c 100644
+index dcc264d3c9..fed9113dc3 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -134,6 +134,15 @@ struct scan_control {
@@ -339,9 +339,9 @@ index dcc264d3c9..5691aec99c 100644
 +	           sysctl_clean_low_ratio ||
 +		       sysctl_clean_min_ratio)) {
 +#ifdef CONFIG_NUMA
-+		si_meminfo(&i);
-+#else //CONFIG_NUMA
 +		si_meminfo_node(&i, pgdat->node_id);
++#else //CONFIG_NUMA
++		si_meminfo(&i);
 +#endif //CONFIG_NUMA
 +		node_mem_total = i.totalram;
 +
