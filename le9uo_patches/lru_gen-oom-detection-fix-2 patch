@@ -1,0 +1,122 @@
+From 606116c6babdc6da19084d98e419f917e32617db Mon Sep 17 00:00:00 2001
+From: Masahito S <firelzrd@gmail.com>
+Date: Wed, 27 Dec 2023 08:01:59 +0900
+Subject: [PATCH] lru_gen OOM detection fix
+
+---
+ mm/vmscan.c | 52 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3c951cc77e..22947e194d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -8,6 +8,7 @@
+  *  to bring the system back to freepages.high: 2.4.97, Rik van Riel.
+  *  Zone aware kswapd started 02/00, Kanoj Sarcar (kanoj@sgi.com).
+  *  Multiqueue VM started 5.8.00, Rik van Riel.
++ *  MGLRU thrashing fix, Masahito Suzuki (firelzrd@gmail.com)
+  */
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+@@ -4605,43 +4606,38 @@ static unsigned long lru_gen_min_ttl __read_mostly = HZ;
+ static unsigned long lru_gen_min_ttl __read_mostly;
+ #endif
+ 
+-static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
+-{
++static bool lru_gen_node_reclaimable(
++	struct pglist_data *pgdat, struct scan_control *sc) {
+ 	struct mem_cgroup *memcg;
+ 	unsigned long min_ttl = READ_ONCE(lru_gen_min_ttl);
+ 
+ 	VM_WARN_ON_ONCE(!current_is_kswapd());
+ 
+-	/* check the order to exclude compaction-induced reclaim */
+-	if (!min_ttl || sc->order || sc->priority == DEF_PRIORITY)
+-		return;
+-
+ 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
+ 	do {
+ 		struct lruvec *lruvec = mem_cgroup_lruvec(memcg, pgdat);
+ 
+ 		if (lruvec_is_reclaimable(lruvec, sc, min_ttl)) {
+ 			mem_cgroup_iter_break(NULL, memcg);
+-			return;
++			return true;
+ 		}
+ 
+ 		cond_resched();
+ 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
+ 
+-	/*
+-	 * The main goal is to OOM kill if every generation from all memcgs is
+-	 * younger than min_ttl. However, another possibility is all memcgs are
+-	 * either too small or below min.
+-	 */
+-	if (mutex_trylock(&oom_lock)) {
+-		struct oom_control oc = {
+-			.gfp_mask = sc->gfp_mask,
+-		};
++	return false;
++}
+ 
+-		out_of_memory(&oc);
++static void lru_gen_invoke_oom(struct scan_control *sc) {
++	struct oom_control oc = {
++		.gfp_mask = sc->gfp_mask,
++		.order = sc->order,
++	};
+ 
+-		mutex_unlock(&oom_lock);
+-	}
++	if (!mutex_trylock(&oom_lock))
++		return;
++	out_of_memory(&oc);
++	mutex_unlock(&oom_lock);
+ }
+ 
+ /******************************************************************************
+@@ -5607,6 +5603,16 @@ static void lru_gen_shrink_node(struct pglist_data *pgdat, struct scan_control *
+ 	if (!sc->may_writepage || !sc->may_unmap)
+ 		goto done;
+ 
++	/*
++	* The main goal is to OOM kill if every generation from all memcgs is
++	* younger than min_ttl. However, another possibility is all memcgs are
++	* either too small or below min.
++	*/
++	if (!lru_gen_node_reclaimable(pgdat, sc)) {
++		lru_gen_invoke_oom(sc);
++		goto done;
++	}
++
+ 	lru_add_drain();
+ 
+ 	blk_start_plug(&plug);
+@@ -6294,10 +6300,6 @@ late_initcall(init_lru_gen);
+ 
+ #else /* !CONFIG_LRU_GEN */
+ 
+-static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
+-{
+-}
+-
+ static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ {
+ }
+@@ -7206,10 +7208,8 @@ static void kswapd_age_node(struct pglist_data *pgdat, struct scan_control *sc)
+ 	struct mem_cgroup *memcg;
+ 	struct lruvec *lruvec;
+ 
+-	if (lru_gen_enabled()) {
+-		lru_gen_age_node(pgdat, sc);
++	if (lru_gen_enabled())
+ 		return;
+-	}
+ 
+ 	if (!can_age_anon_pages(pgdat, sc))
+ 		return;
+-- 
+2.25.1
+
