@@ -4,5 +4,5 @@
 #sysctl -w vm.anon_min_ratio=15
 #sysctl -w vm.clean_low_ratio=0
 #sysctl -w vm.clean_min_ratio=15
-echo n | tee /sys/kernel/mm/lru_gen/enabled
+echo n | tee /sys/kernel/mm/lru_gen/enabled > /dev/null
 

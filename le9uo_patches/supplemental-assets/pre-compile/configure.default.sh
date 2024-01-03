@@ -8,10 +8,10 @@
 if [ -z "${BUILD_DIR}" ]; then BUILD_DIR="."; fi
 
 # Enable minimal protection by default
-./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_ANON_MIN_RATIO  0
-./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_CLEAN_LOW_RATIO 0
-./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_CLEAN_MIN_RATIO 1
+./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_ANON_MIN_RATIO   0
+./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_CLEAN_LOW_RATIO  0
+./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_CLEAN_MIN_RATIO  1
 
 # Enable lru_gen at boot, to optionally activate le9 after boot by user
-./scripts/config --file "$BUILD_DIR/.config" --enable LRU_GEN_ENABLED
+./scripts/config --file "$BUILD_DIR/.config" --enable  LRU_GEN_ENABLED
 
