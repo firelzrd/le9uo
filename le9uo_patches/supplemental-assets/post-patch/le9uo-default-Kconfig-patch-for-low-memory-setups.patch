@@ -1,0 +1,42 @@
+From e9c7f46d7956220425437db85ccece0b277f2887 Mon Sep 17 00:00:00 2001
+From: Masahito S <firelzrd@gmail.com>
+Date: Mon, 8 Jan 2024 04:03:51 +0900
+Subject: [PATCH] le9uo default Kconfig patch for low memory setups
+
+---
+ mm/Kconfig | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ff224ec397..a1131ae268 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -513,7 +513,7 @@ config ANON_MIN_RATIO
+ 	int "Default value for vm.anon_min_ratio"
+ 	depends on SYSCTL
+ 	range 0 100
+-	default 0
++	default 15
+ 	help
+ 	  This option sets the default value for vm.anon_min_ratio sysctl knob.
+ 
+@@ -553,7 +553,7 @@ config CLEAN_MIN_RATIO
+ 	int "Default value for vm.clean_min_ratio"
+ 	depends on SYSCTL
+ 	range 0 100
+-	default 1
++	default 15
+ 	help
+ 	  This option sets the default value for vm.clean_min_ratio sysctl knob.
+ 
+@@ -1291,6 +1291,7 @@ config LRU_GEN
+ 
+ config LRU_GEN_ENABLED
+ 	bool "Enable by default"
++	def_bool n
+ 	depends on LRU_GEN
+ 	help
+ 	  This option enables the multi-gen LRU by default.
+-- 
+2.25.1
+
