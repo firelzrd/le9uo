@@ -1,15 +1,15 @@
-From 8ca6457e14cbfa6afeb1ceacba2be483eaba5240 Mon Sep 17 00:00:00 2001
+From 422deb997adfe7cbfd18e8c4a375ec699be814dd Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Fri, 29 Dec 2023 10:12:58 +0900
-Subject: [PATCH] linux6.6-le9uo-1.2
+Date: Thu, 11 Jan 2024 03:48:02 +0900
+Subject: [PATCH] le9uo v1.2-r2
 
 ---
- Documentation/admin-guide/sysctl/vm.rst |  72 ++++++++++
- include/linux/mm.h                      |   7 +
- kernel/sysctl.c                         |  27 ++++
- mm/Kconfig                              |  63 +++++++++
- mm/vmscan.c                             | 174 ++++++++++++++++++++----
- 5 files changed, 320 insertions(+), 23 deletions(-)
+ Documentation/admin-guide/sysctl/vm.rst |  72 ++++++++++++
+ include/linux/mm.h                      |   7 ++
+ kernel/sysctl.c                         |  27 +++++
+ mm/Kconfig                              |  63 ++++++++++
+ mm/vmscan.c                             | 148 ++++++++++++++++++++++++
+ 5 files changed, 317 insertions(+)
 
 diff --git a/Documentation/admin-guide/sysctl/vm.rst b/Documentation/admin-guide/sysctl/vm.rst
 index 45ba1f4dc0..25c6491d62 100644
@@ -239,7 +239,7 @@ index 264a2df5ec..3dda230abe 100644
  	bool
  
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dcc264d3c9..c44f22bccb 100644
+index dcc264d3c9..6ca32ce025 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -134,6 +134,15 @@ struct scan_control {
@@ -315,12 +315,10 @@ index dcc264d3c9..c44f22bccb 100644
  		nr[lru] = scan;
  	}
  }
-@@ -4597,42 +4642,122 @@ static bool lruvec_is_reclaimable(struct lruvec *lruvec, struct scan_control *sc
+@@ -4597,6 +4642,21 @@ static bool lruvec_is_reclaimable(struct lruvec *lruvec, struct scan_control *sc
  /* to protect the working set of the last N jiffies */
  static unsigned long lru_gen_min_ttl __read_mostly;
  
--static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
--{
 +static void invoke_oom(struct scan_control *sc) {
 +	struct oom_control oc = {
 +		.gfp_mask = sc->gfp_mask,
@@ -336,33 +334,13 @@ index dcc264d3c9..c44f22bccb 100644
 +	mutex_unlock(&oom_lock);
 +}
 +
-+static bool lru_gen_node_reclaimable(
-+	struct pglist_data *pgdat, struct scan_control *sc) {
+ static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
+ {
  	struct mem_cgroup *memcg;
- 	unsigned long min_ttl = READ_ONCE(lru_gen_min_ttl);
+@@ -4636,6 +4696,88 @@ static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
+ 	}
+ }
  
- 	VM_WARN_ON_ONCE(!current_is_kswapd());
- 
--	/* check the order to exclude compaction-induced reclaim */
--	if (!min_ttl || sc->order || sc->priority == DEF_PRIORITY)
--		return;
--
- 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
- 	do {
- 		struct lruvec *lruvec = mem_cgroup_lruvec(memcg, pgdat);
- 
- 		if (lruvec_is_reclaimable(lruvec, sc, min_ttl)) {
- 			mem_cgroup_iter_break(NULL, memcg);
--			return;
-+			return true;
- 		}
- 
- 		cond_resched();
- 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
- 
-+	return false;
-+}
-+
 +int vm_workingset_protection_update_handler(struct ctl_table *table, int write,
 +		void __user *buffer, size_t *lenp, loff_t *ppos)
 +{
@@ -400,21 +378,13 @@ index dcc264d3c9..c44f22bccb 100644
 +		}
 +	}
 +
- 	/*
--	 * The main goal is to OOM kill if every generation from all memcgs is
--	 * younger than min_ttl. However, another possibility is all memcgs are
--	 * either too small or below min.
++	/*
 +	 * Check the number of anonymous pages to protect them from
 +	 * reclaiming if their amount is below the specified.
- 	 */
--	if (mutex_trylock(&oom_lock)) {
--		struct oom_control oc = {
--			.gfp_mask = sc->gfp_mask,
--		};
++	 */
 +	if (sysctl_anon_min_ratio) {
 +		unsigned long reclaimable_anon;
- 
--		out_of_memory(&oc);
++
 +		reclaimable_anon =
 +			node_page_state(pgdat, NR_ACTIVE_ANON) +
 +			node_page_state(pgdat, NR_INACTIVE_ANON) +
@@ -423,8 +393,7 @@ index dcc264d3c9..c44f22bccb 100644
 +		sc->anon_below_min = reclaimable_anon < sysctl_anon_min_ratio_kb;
 +	} else
 +		sc->anon_below_min = 0;
- 
--		mutex_unlock(&oom_lock);
++
 +	/*
 +	 * Check the number of clean file pages to protect them from
 +	 * reclaiming if their amount is below the specified.
@@ -451,31 +420,13 @@ index dcc264d3c9..c44f22bccb 100644
 +	} else {
 +		sc->clean_below_low = 0;
 +		sc->clean_below_min = 0;
- 	}
- }
- 
-@@ -5621,6 +5746,9 @@ static void lru_gen_shrink_node(struct pglist_data *pgdat, struct scan_control *
- 	clear_mm_walk();
- 
- 	blk_finish_plug(&plug);
++	}
++}
 +
-+	if (sc->nr_reclaimed == reclaimed && !lru_gen_node_reclaimable(pgdat, sc))
-+		invoke_oom(sc);
- done:
- 	/* kswapd should never fail */
- 	pgdat->kswapd_failures = 0;
-@@ -6286,10 +6414,6 @@ late_initcall(init_lru_gen);
- 
- #else /* !CONFIG_LRU_GEN */
- 
--static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
--{
--}
--
- static void lru_gen_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- {
- }
-@@ -6567,6 +6691,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ /******************************************************************************
+  *                          rmap/PT walk feedback
+  ******************************************************************************/
+@@ -6567,6 +6709,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
  	prepare_scan_count(pgdat, sc);
  
@@ -484,7 +435,7 @@ index dcc264d3c9..c44f22bccb 100644
  	shrink_node_memcgs(pgdat, sc);
  
  	flush_reclaim_state(sc);
-@@ -6655,6 +6781,10 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -6655,6 +6799,10 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  	 */
  	if (reclaimable)
  		pgdat->kswapd_failures = 0;
@@ -495,18 +446,6 @@ index dcc264d3c9..c44f22bccb 100644
  }
  
  /*
-@@ -7198,10 +7328,8 @@ static void kswapd_age_node(struct pglist_data *pgdat, struct scan_control *sc)
- 	struct mem_cgroup *memcg;
- 	struct lruvec *lruvec;
- 
--	if (lru_gen_enabled()) {
--		lru_gen_age_node(pgdat, sc);
-+	if (lru_gen_enabled())
- 		return;
--	}
- 
- 	if (!can_age_anon_pages(pgdat, sc))
- 		return;
 -- 
 2.25.1
 
