@@ -12,6 +12,6 @@ if [ -z "${BUILD_DIR}" ]; then BUILD_DIR="."; fi
 ./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_CLEAN_LOW_RATIO  0
 ./scripts/config --file "$BUILD_DIR/.config" --set-val CONFIG_CLEAN_MIN_RATIO 15
 
-# Disable lru_gen at boot, to activate le9 at boot-time
-./scripts/config --file "$BUILD_DIR/.config" --disable LRU_GEN_ENABLED
+# Enable lru_gen at boot, to activate le9 at boot-time
+./scripts/config --file "$BUILD_DIR/.config" --enable LRU_GEN_ENABLED
 

@@ -1,8 +1,0 @@
-#!/bin/sh
-# This script is supposed to be replaced or appended to /etc/rc.local to activate le9 at boot-time.
-
-#sysctl -w vm.anon_min_ratio=15
-#sysctl -w vm.clean_low_ratio=0
-#sysctl -w vm.clean_min_ratio=15
-echo n | tee /sys/kernel/mm/lru_gen/enabled > /dev/null
-
