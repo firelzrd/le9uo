@@ -1,0 +1,25 @@
+From fd186aa9e9fab377ddfc18b01cc376c0a9873942 Mon Sep 17 00:00:00 2001
+From: Masahito S <firelzrd@gmail.com>
+Date: Tue, 30 Jan 2024 17:22:00 +0900
+Subject: [PATCH] vm.workingset_protection: On by default
+
+---
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7d901f8b91..e8d2c8f9dc 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -197,7 +197,7 @@ struct scan_control {
+ #define prefetchw_prev_lru_folio(_folio, _base, _field) do { } while (0)
+ #endif
+ 
+-bool sysctl_workingset_protection __read_mostly = false;
++bool sysctl_workingset_protection __read_mostly = true;
+ u8 sysctl_anon_min_ratio  __read_mostly = CONFIG_ANON_MIN_RATIO;
+ u8 sysctl_clean_low_ratio __read_mostly = CONFIG_CLEAN_LOW_RATIO;
+ u8 sysctl_clean_min_ratio __read_mostly = CONFIG_CLEAN_MIN_RATIO;
+-- 
+2.34.1
+
