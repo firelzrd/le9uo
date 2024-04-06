@@ -1,19 +1,19 @@
-From 030a5f77a73ac216d33f6a7fc1dd16dc86c4ba75 Mon Sep 17 00:00:00 2001
+From cc9ba301d7e6a748c3d57a61fc19cd8748d58de2 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Tue, 2 Apr 2024 04:24:15 +0900
-Subject: [PATCH] linux6.6-le9uo-1.4
+Date: Sun, 7 Apr 2024 01:09:22 +0900
+Subject: [PATCH] linux6.9-le9uo-1.5
 
 ---
- Documentation/admin-guide/sysctl/vm.rst |  72 ++++++++++
+ Documentation/admin-guide/sysctl/vm.rst |  72 +++++++++++
  include/linux/mm.h                      |   8 ++
  kernel/sysctl.c                         |  34 +++++
- mm/Kconfig                              |  63 +++++++++
+ mm/Kconfig                              |  63 ++++++++++
  mm/mm_init.c                            |   1 +
- mm/vmscan.c                             | 170 +++++++++++++++++++++++-
- 6 files changed, 341 insertions(+), 7 deletions(-)
+ mm/vmscan.c                             | 158 ++++++++++++++++++++++--
+ 6 files changed, 329 insertions(+), 7 deletions(-)
 
 diff --git a/Documentation/admin-guide/sysctl/vm.rst b/Documentation/admin-guide/sysctl/vm.rst
-index 45ba1f4dc0..5cc069c428 100644
+index c59889de12..468ae7dec1 100644
 --- a/Documentation/admin-guide/sysctl/vm.rst
 +++ b/Documentation/admin-guide/sysctl/vm.rst
 @@ -25,6 +25,9 @@ files can be found in mm/swap.c.
@@ -110,10 +110,10 @@ index 45ba1f4dc0..5cc069c428 100644
  unprivileged_userfaultfd
  ========================
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bf5d0b1b16..9e6731543f 100644
+index 0436b919f1..f4e17e7caa 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -195,6 +195,14 @@ static inline void __mm_zero_struct_page(struct page *page)
+@@ -196,6 +196,14 @@ static inline void __mm_zero_struct_page(struct page *page)
  
  extern int sysctl_max_map_count;
  
@@ -129,10 +129,10 @@ index bf5d0b1b16..9e6731543f 100644
  extern unsigned long sysctl_admin_reserve_kbytes;
  
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 354a2d294f..ee08ca07c8 100644
+index 81cc974913..62dbfb982c 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
-@@ -2213,6 +2213,40 @@ static struct ctl_table vm_table[] = {
+@@ -2204,6 +2204,40 @@ static struct ctl_table vm_table[] = {
  		.extra1		= SYSCTL_ZERO,
  	},
  #endif
@@ -174,10 +174,10 @@ index 354a2d294f..ee08ca07c8 100644
  		.procname	= "user_reserve_kbytes",
  		.data		= &sysctl_user_reserve_kbytes,
 diff --git a/mm/Kconfig b/mm/Kconfig
-index 264a2df5ec..4c21fdb6ec 100644
+index b1448aa81e..b6d22d5f4f 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
-@@ -509,6 +509,69 @@ config ARCH_WANT_OPTIMIZE_DAX_VMEMMAP
+@@ -470,6 +470,69 @@ config ARCH_WANT_OPTIMIZE_DAX_VMEMMAP
  config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
  	bool
  
@@ -248,22 +248,22 @@ index 264a2df5ec..4c21fdb6ec 100644
  	bool
  
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index 50f2f34745..d1642a5a42 100644
+index 549e76af8f..80953fffbf 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
-@@ -2754,6 +2754,7 @@ static void __init mem_init_print_info(void)
+@@ -2750,6 +2750,7 @@ static void __init mem_init_print_info(void)
  		, K(totalhigh_pages())
  #endif
  		);
-+	printk(KERN_INFO "le9 Unofficial (le9uo) working set protection 1.4 by Masahito Suzuki (forked from hakavlad's original le9 patch)");
++	printk(KERN_INFO "le9 Unofficial (le9uo) working set protection 1.5 by Masahito Suzuki (forked from hakavlad's original le9 patch)");
  }
  
  /*
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dcc264d3c9..aadf9a9aa4 100644
+index 3ef654addd..fa04609923 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -134,6 +134,15 @@ struct scan_control {
+@@ -139,6 +139,15 @@ struct scan_control {
  	/* The file folios on the current node are dangerously low */
  	unsigned int file_is_tiny:1;
  
@@ -279,7 +279,7 @@ index dcc264d3c9..aadf9a9aa4 100644
  	/* Always discard instead of demoting to lower tier memory */
  	unsigned int no_demotion:1;
  
-@@ -183,6 +192,15 @@ struct scan_control {
+@@ -188,6 +197,15 @@ struct scan_control {
  #define prefetchw_prev_lru_folio(_folio, _base, _field) do { } while (0)
  #endif
  
@@ -295,7 +295,7 @@ index dcc264d3c9..aadf9a9aa4 100644
  /*
   * From 0 .. 200.  Higher means more swappy.
   */
-@@ -1752,6 +1770,9 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1059,6 +1077,9 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		    folio_mapped(folio) && folio_test_referenced(folio))
  			goto keep_locked;
  
@@ -305,31 +305,23 @@ index dcc264d3c9..aadf9a9aa4 100644
  		/*
  		 * The number of dirty pages determines if a node is marked
  		 * reclaim_congested. kswapd will stall and start writing
-@@ -3053,6 +3074,23 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+@@ -2380,6 +2401,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  		goto out;
  	}
  
 +	/*
-+	 * Force-scan the other type if anon/clean pages is
-+	 * under vm.{anon,clean}_{low,min}_ratio, respectively.
++	 * Force-scan anon if clean file pages is under vm.clean_low_ratio
++	 * or vm.clean_min_ratio.
 +	 */
-+	if (sc->clean_below_min) {
-+		scan_balance = SCAN_ANON;
-+		goto out;
-+	}
-+	if (sc->anon_below_min) {
-+		scan_balance = SCAN_FILE;
-+		goto out;
-+	}
-+	if (sc->clean_below_low) {
++	if (sc->clean_below_low || sc->clean_below_min) {
 +		scan_balance = SCAN_ANON;
 +		goto out;
 +	}
 +
  	/*
- 	 * Do not apply any pressure balancing cleverness when the
- 	 * system is close to OOM, scan both anon and file equally
-@@ -3215,6 +3253,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 	 * If there is enough inactive page cache, we do not reclaim
+ 	 * anything from the anonymous working right now.
+@@ -2524,6 +2554,14 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  			BUG();
  		}
  
@@ -344,7 +336,7 @@ index dcc264d3c9..aadf9a9aa4 100644
  		nr[lru] = scan;
  	}
  }
-@@ -4597,6 +4643,23 @@ static bool lruvec_is_reclaimable(struct lruvec *lruvec, struct scan_control *sc
+@@ -3935,6 +3973,23 @@ static bool lruvec_is_reclaimable(struct lruvec *lruvec, struct scan_control *sc
  /* to protect the working set of the last N jiffies */
  static unsigned long lru_gen_min_ttl __read_mostly;
  
@@ -368,7 +360,7 @@ index dcc264d3c9..aadf9a9aa4 100644
  static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
  {
  	struct mem_cgroup *memcg;
-@@ -4625,14 +4688,96 @@ static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
+@@ -3963,14 +4018,96 @@ static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
  	 * younger than min_ttl. However, another possibility is all memcgs are
  	 * either too small or below min.
  	 */
@@ -386,10 +378,10 @@ index dcc264d3c9..aadf9a9aa4 100644
 +	int ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
 +	if (ret || !write)
 +		return ret;
++
++	workingset_protection_prev_totalram = 0;
  
 -		mutex_unlock(&oom_lock);
-+	workingset_protection_prev_totalram = 0;
-+
 +	return 0;
 +}
 +
@@ -471,20 +463,16 @@ index dcc264d3c9..aadf9a9aa4 100644
  	}
  }
  
-@@ -5136,6 +5281,12 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
+@@ -4476,6 +4613,8 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
  	 */
  	if (!swappiness)
  		type = LRU_GEN_FILE;
-+	else if (sc->clean_below_min)
-+		type = LRU_GEN_ANON;
-+	else if (sc->anon_below_min)
-+		type = LRU_GEN_FILE;
-+	else if (sc->clean_below_low)
++	else if (sc->clean_below_min || sc->clean_below_low)
 +		type = LRU_GEN_ANON;
  	else if (min_seq[LRU_GEN_ANON] < min_seq[LRU_GEN_FILE])
  		type = LRU_GEN_ANON;
  	else if (swappiness == 1)
-@@ -5145,7 +5296,7 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
+@@ -4487,7 +4626,7 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
  	else
  		type = get_type_to_scan(lruvec, swappiness, &tier);
  
@@ -493,7 +481,7 @@ index dcc264d3c9..aadf9a9aa4 100644
  		if (tier < 0)
  			tier = get_tier_idx(lruvec, type);
  
-@@ -5420,6 +5571,7 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
+@@ -4756,6 +4895,7 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
  	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
  
@@ -501,19 +489,19 @@ index dcc264d3c9..aadf9a9aa4 100644
  	mem_cgroup_calculate_protection(NULL, memcg);
  
  	if (mem_cgroup_below_min(NULL, memcg))
-@@ -6567,6 +6719,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -5905,6 +6045,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
- 	prepare_scan_count(pgdat, sc);
+ 	prepare_scan_control(pgdat, sc);
  
 +	prepare_workingset_protection(pgdat, sc);
 +
  	shrink_node_memcgs(pgdat, sc);
  
  	flush_reclaim_state(sc);
-@@ -6655,6 +6809,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 	 */
- 	if (reclaimable)
+@@ -5995,6 +6137,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  		pgdat->kswapd_failures = 0;
+ 	else if (sc->cache_trim_mode)
+ 		sc->cache_trim_mode_failed = 1;
 +	else if (sc->clean_below_min && !sc->priority)
 +		invoke_oom(sc);
  }
