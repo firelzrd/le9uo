@@ -2,6 +2,8 @@
 
 Working set protection that is compatible with both the traditional LRU and the Multi-Gen LRU (a.k.a. lru_gen)
 
+# It is suspected that the large-scale modification of the VMM in Linux 6.11 has caused issues with the memory reclamation mechanism. Since le9uo is also affected, the release of patches for version 6.11 has been canceled.
+
 ## How it works
 
 ![alt Without le9uo](https://raw.githubusercontent.com/firelzrd/le9uo/main/without-le9uo.png)
