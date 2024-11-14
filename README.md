@@ -4,8 +4,7 @@ Working set protection that is compatible with both the traditional LRU and the 
 
 ## How it works
 
-![alt Without le9uo](https://raw.githubusercontent.com/firelzrd/le9uo/main/without-le9uo.png)
-![alt With le9uo](https://raw.githubusercontent.com/firelzrd/le9uo/main/with-le9uo.png)  
+![alt le9uo illustrated](https://raw.githubusercontent.com/firelzrd/le9uo/main/le9uo-illustrated.png)
 
 ## Demo
 
