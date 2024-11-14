@@ -2,8 +2,6 @@
 
 Working set protection that is compatible with both the traditional LRU and the Multi-Gen LRU (a.k.a. lru_gen)
 
-# It is suspected that the large-scale modification of the VMM in Linux 6.11 has caused issues with the memory reclamation mechanism. Since le9uo is also affected, the release of patches for version 6.11 has been canceled.
-
 ## How it works
 
 ![alt Without le9uo](https://raw.githubusercontent.com/firelzrd/le9uo/main/without-le9uo.png)
@@ -12,6 +10,41 @@ Working set protection that is compatible with both the traditional LRU and the 
 ## Demo
 
 https://youtu.be/FaEc5AeJEAU
+
+le9uo's positive effect is so obvious to see by running the following 3 continuous workers at the same time:
+- `$ while true; do tail /dev/zero; done` to impose continuous memory stress
+- `$ cat /path/to/some_huge_file > /dev/null` to fill and rotate file cache LRU
+- `$ while true; do time cat /path/to/some_moderately_large_file > /dev/null; sleep $(($(cat /sys/kernel/mm/lru_gen/min_ttl_ms)/1000)); done` to measure file access time
+
+Results:
+```
+vm.workingset_protection=1
+real	0m0.135s
+real	0m0.136s
+real	0m0.141s
+real	0m0.849s
+real	0m0.403s
+real	0m1.374s
+real	0m0.209s
+real	0m0.214s
+real	0m0.143s
+real	0m0.145s
+real	0m0.141s
+real	0m0.147s
+real	0m0.145s
+real	0m0.915s
+real	0m0.237s
+
+vm.workingset_protection=0
+real	0m5.248s
+real	0m5.361s
+real	0m5.249s
+real	0m5.520s
+real	0m5.332s
+real	0m6.152s
+real	0m5.229s
+real	0m5.787s
+```
 
 ## Forked from
 
