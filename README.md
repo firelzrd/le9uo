@@ -13,7 +13,7 @@ https://youtu.be/FaEc5AeJEAU
 le9uo's positive effect is so obvious to see by running the following 3 continuous workers at the same time:
 - `$ while true; do tail /dev/zero; done` to impose continuous memory stress
 - `$ cat /path/to/some_huge_file > /dev/null` to fill and rotate file cache LRU
-- `$ while true; do time cat /path/to/some_moderately_large_file > /dev/null; sleep $(($(cat /sys/kernel/mm/lru_gen/min_ttl_ms)/1000)); done` to measure file access time
+- `$ while true; do time cat /path/to/some_moderately_large_file > /dev/null; sleep $(($(cat /sys/kernel/mm/lru_gen/min_ttl_ms)/1000+1)); done` to measure file access time
 
 Results:
 ```
