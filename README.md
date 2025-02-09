@@ -44,6 +44,7 @@ real	0m6.152s
 real	0m5.229s
 real	0m5.787s
 ```
+![access-latencies](https://github.com/user-attachments/assets/69f5d9e2-43f4-4024-9c7d-44a3165ca80c)
 
 ## Forked from
 
