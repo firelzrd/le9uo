@@ -1,7 +1,7 @@
-From 19bfd1f071160d79cbdd3f9bba206608c538e8f0 Mon Sep 17 00:00:00 2001
+From 614b1e673b7c7027e20ac27576e6d2037585a605 Mon Sep 17 00:00:00 2001
 From: Masahito S <firelzrd@gmail.com>
-Date: Thu, 10 Apr 2025 01:43:02 +0900
-Subject: [PATCH] linux6.12.3-le9uo-1.12
+Date: Sat, 7 Dec 2024 03:34:29 +0900
+Subject: [PATCH] linux6.12.3-le9uo-1.8
 
 ---
  Documentation/admin-guide/sysctl/vm.rst |  72 ++++++++++++
@@ -9,8 +9,8 @@ Subject: [PATCH] linux6.12.3-le9uo-1.12
  kernel/sysctl.c                         |  34 ++++++
  mm/Kconfig                              |  63 +++++++++++
  mm/mm_init.c                            |   1 +
- mm/vmscan.c                             | 143 +++++++++++++++++++++++-
- 6 files changed, 320 insertions(+), 1 deletion(-)
+ mm/vmscan.c                             | 139 ++++++++++++++++++++++++
+ 6 files changed, 317 insertions(+)
 
 diff --git a/Documentation/admin-guide/sysctl/vm.rst b/Documentation/admin-guide/sysctl/vm.rst
 index f48eaa98d2..fc777c14cf 100644
@@ -248,19 +248,19 @@ index 33fa51d608..44ab4fd29c 100644
  	bool
  
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index 4ba5607aaf..6d83a6bab9 100644
+index 4ba5607aaf..c081fbac7e 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
 @@ -2628,6 +2628,7 @@ static void __init mem_init_print_info(void)
  		, K(totalhigh_pages())
  #endif
  		);
-+	printk(KERN_INFO "le9 Unofficial (le9uo) working set protection 1.12 by Masahito Suzuki (forked from hakavlad's original le9 patch)");
++	printk(KERN_INFO "le9 Unofficial (le9uo) working set protection 1.8 by Masahito Suzuki (forked from hakavlad's original le9 patch)");
  }
  
  /*
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 28ba2b06fc..6d4910c5ec 100644
+index 28ba2b06fc..b0969b4a81 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -148,6 +148,15 @@ struct scan_control {
@@ -283,7 +283,7 @@ index 28ba2b06fc..6d4910c5ec 100644
  #define prefetchw_prev_lru_folio(_folio, _base, _field) do { } while (0)
  #endif
  
-+bool sysctl_workingset_protection __read_mostly = true;
++bool sysctl_workingset_protection __read_mostly = false;
 +u8 sysctl_anon_min_ratio  __read_mostly = CONFIG_ANON_MIN_RATIO;
 +u8 sysctl_clean_low_ratio __read_mostly = CONFIG_CLEAN_LOW_RATIO;
 +u8 sysctl_clean_min_ratio __read_mostly = CONFIG_CLEAN_MIN_RATIO;
@@ -447,27 +447,16 @@ index 28ba2b06fc..6d4910c5ec 100644
  	else if (min_seq[LRU_GEN_ANON] < min_seq[LRU_GEN_FILE])
  		type = LRU_GEN_ANON;
  	else if (swappiness == 1)
-@@ -4806,6 +4941,9 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
- 	unsigned long reclaimed = sc->nr_reclaimed;
+@@ -4807,6 +4942,8 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
  	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-+	bool can_swap = get_swappiness(lruvec, sc);
-+
-+	prepare_workingset_protection(pgdat, sc);
  
++	prepare_workingset_protection(pgdat, sc);
++
  	/* lru_gen_age_node() called mem_cgroup_calculate_protection() */
  	if (mem_cgroup_below_min(NULL, memcg))
-@@ -4832,7 +4970,8 @@ static int shrink_one(struct lruvec *lruvec, struct scan_control *sc)
- 	if (success && mem_cgroup_online(memcg))
  		return MEMCG_LRU_YOUNG;
- 
--	if (!success && lruvec_is_sizable(lruvec, sc))
-+	if (!success && ((sysctl_workingset_protection && !can_swap) ||
-+			lruvec_is_sizable(lruvec, sc)))
- 		return 0;
- 
- 	/* one retry if offlined or too small */
-@@ -5954,6 +6093,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+@@ -5954,6 +6091,8 @@ static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
  
  	prepare_scan_control(pgdat, sc);
  
