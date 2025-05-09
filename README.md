@@ -1,10 +1,26 @@
 # le9 Unofficial
 
-Working set protection that is compatible with both the traditional LRU and the Multi-Gen LRU (a.k.a. lru_gen)
+**Working Set Protection Compatible with Traditional LRU and Multi-Gen LRU (a.k.a. lru_gen)**  
 
 ## How it works
 
 ![alt le9uo illustrated](https://raw.githubusercontent.com/firelzrd/le9uo/main/le9uo-illustrated.png)
+
+This feature benefits in three key scenarios:  
+
+1. **During Physical Memory Exhaustion**  
+   While the memory manager evicts the oldest pages from the page LRU list to swap devices, le9uo preserves a certain amount of page cache, preventing excessive page faults and maintaining system responsiveness.  
+   In an experiment (demonstrated below), file access performance showed an approximate +3700% improvement (38 times faster) under continuous memory pressure compared to the vanilla kernel.
+
+2. **Near Out-of-Memory Conditions**  
+   When virtual memory is fully utilized and no space remains in the system requiring process termination, le9uo enables immediate detection of this state and instantly invokes the OOM Killer to recover from the critical situation. This prevents thrashing or prolonged live-locking, ensuring stable and smooth system operation during such events.  
+   As shown in the following YouTube demo video, in best cases, recovery occurs with faster than a blink of negligible delay, and users may not even notice when the OOM Killer has acted.  
+   In contrast, the vanilla kernel may experience severe issues under these conditions, including extreme slowdowns, system unstability, prolonged system unresponsiveness, or even complete failure to respond indefinitely.
+
+3. **After Out-of-Memory Conditions**  
+   Even immediately after an OOM event, the system continues operating smoothly because le9uo has protected a portion of the page cache in memory, preventing the need to reload it from storage.  
+
+In summary, le9uo significantly mitigates performance and stability issues caused by severe memory pressure.
 
 ## Demo
 
