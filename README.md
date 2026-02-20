@@ -90,5 +90,11 @@ How much in percentile of total physical memory to preserve for HARD protection 
 
 How much in percentile of total physical memory to preserve for SOFT protection of clean file pages.
 
+## See Also: Re-swappiness
+
+A companion patch that fixes MGLRU's broken `vm.swappiness` behavior. Combined with le9uo, it provides full working set protection with proper `swappiness` control on MGLRU-enabled kernels.
+
+https://github.com/firelzrd/re-swappiness
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y8Y5NHO2I)
 
